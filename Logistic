@@ -1,0 +1,178 @@
+## Step 0, import packages
+
+```{r cars, echo=FALSE}
+package <-
+  c("tidyverse",
+    "data.table",
+    "survival",
+    "Publish",
+    "table1")
+for (p in package) {
+  if (require(p, character.only = T)) {
+    print(paste0(p, " loaded successfully"))
+  } else {
+    install.packages(p)
+    require(p, character.only = T)
+    print(paste0(p, " downloaded and loaded successfully"))
+  }
+}
+```
+
+## Step 1, read in metadata, seperate be and eac
+
+```{r ewadin, echo=FALSE}
+
+metadata <-
+  read.csv("C:/Users/wangy/Box/8. BE_Oral microbiome/3.16S data/metadata.csv") %>%
+  mutate(yendo = yendo + 1900) %>%
+  mutate(yrc = yrc + 1900) %>%
+  mutate(ydx = ydx + 1900)
+
+# Check sample type
+knitr::kable(table(metadata$status), caption = "Overall sample type")
+
+# Seperate BE and EAC
+beCaco <- filter(metadata, status %in% c("BE", "BE_Control"))
+eacCaco <- filter(metadata, status %in% c("EAC", "EAC_Control")) 
+
+# Then check type inside be file and eac file
+knitr::kable(table(beCaco$status), caption = "Sample type in BE case control dataset")
+knitr::kable(table(eacCaco$status), caption = "Sample type in EAC case control dataset")
+
+```
+
+# Table1 for BE
+```{r table1BE, echo=FALSE}
+
+# Table 1 for BE
+# Matched on 
+# age at cheek collection (+-2yr)
+# DNA extraction methods (Gentra/Qiagen)
+# year of upper endo (+-1yr)
+
+table1(
+  ~ age_cheek +
+    factor(be_dnatype) +
+    factor(yendo) +
+    factor(cheekYear) +
+    bmicum +
+    actmcum +
+    caloriecum +
+    alcocum +
+    factor(pmhc) +
+    factor(smoke) +
+    ahei2010_noETOHcum +
+    factor(upperendo) +
+    factor(gerdall) +
+    factor(anyaat) +
+    factor(regasp) +
+    factor(regaspd) +
+    factor(avregaspre) +
+    factor(nsaid) +
+    factor(db) | factor(be_caco),
+  data = beCaco,
+  overall = "Total"
+)
+```
+
+# Conditional logistic for BE
+```{r clogitBE, echo=FALSE}
+publish(
+  clogit(
+    be_caco ~ factor(regaspd) +
+      factor(gerdall) +
+      factor(anyaat) +
+      bmicum +
+      actmcum +
+      caloriecum +
+      alcocum +
+      factor(pmhc) +
+      factor(smoke) +
+      strata(be_matchid),
+    beCaco
+  )
+)
+```
+
+# Unconditional logistic for BE
+```{r logisticBE, echo=FALSE}
+publish(
+  glm(
+    be_caco ~ factor(regaspd) +
+      age_cheek +
+      cheekYear +
+      factor(gerdall) +
+      factor(anyaat) +
+      bmicum +
+      actmcum +
+      caloriecum +
+      alcocum +
+      factor(pmhc) +
+      factor(smoke)  ,
+    family = "binomial",
+    beCaco
+  )
+)
+```
+
+
+# Table 1 for EAC
+```{r table1EAC, echo=FALSE}
+table1(
+  ~ age_cheek +
+    factor(eac_dnatype) +
+    factor(yendo) +
+    factor(cheekYear) +
+    bmicum +
+    actmcum +
+    caloriecum +
+    alcocum +
+    factor(pmhc) +
+    factor(smoke) +
+    ahei2010_noETOHcum +
+    factor(upperendo) +
+    factor(gerdall) +
+    factor(anyaat) +
+    factor(regasp) +
+    factor(regaspd) +
+    factor(avregaspre) +
+    factor(nsaid) +
+    factor(db) | factor(eac_caco),
+  data = eacCaco,
+  overall = "Total"
+)
+
+# Conditional logistic for EAC
+# publish(
+#   clogit(
+#     eac_caco ~ factor(regaspd) +
+#       factor(gerdall) +
+#       factor(anyaat) +
+#       bmicum +
+#       actmcum +
+#       caloriecum +
+#       alcocum +
+#       factor(pmhc) +
+#       factor(smoke) +
+#       strata(eac_matchid),
+#     eacCaco
+#   )
+# )
+
+# Unconditional logistic for EAC
+# publish(
+#   glm(
+#     eac_caco ~ factor(regaspd) +
+#       factor(gerdall) +
+#       factor(anyaat) +
+#       bmicum +
+#       actmcum +
+#       caloriecum +
+#       alcocum +
+#       factor(pmhc) +
+#       factor(smoke),
+#     family = "binomial",
+#     eacCaco
+#   )
+# )
+```
