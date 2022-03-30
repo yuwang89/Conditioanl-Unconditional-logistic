@@ -1,3 +1,10 @@
+---
+title: "unconditional logistic regression"
+author: "yuwang"
+date: "2022/2/4"
+output: html_document
+---
+
 ## Step 0, import packages
 
 ```{r cars, echo=FALSE}
@@ -16,29 +23,343 @@ for (p in package) {
     print(paste0(p, " downloaded and loaded successfully"))
   }
 }
+
+library(compositions)
+library(ggrepel)
+library(ggbeeswarm)
 ```
 
 ## Step 1, read in metadata, seperate be and eac
 
 ```{r ewadin, echo=FALSE}
 
-metadata <-
-  read.csv("C:/Users/wangy/Box/8. BE_Oral microbiome/3.16S data/metadata.csv") %>%
-  mutate(yendo = yendo + 1900) %>%
-  mutate(yrc = yrc + 1900) %>%
-  mutate(ydx = ydx + 1900)
+#metadata <-
+#  read.csv("C:/Users/wangy/Box/8. BE_Oral microbiome/3.16S #data/metadata.csv") %>%
+#  mutate(yendo = yendo + 1900) %>%
+#  mutate(yrc = yrc + 1900) %>%
+#  mutate(ydx = ydx + 1900)
 
 # Check sample type
-knitr::kable(table(metadata$status), caption = "Overall sample type")
+#knitr::kable(table(metadata$status), caption = "Overall sample type")
 
 # Seperate BE and EAC
-beCaco <- filter(metadata, status %in% c("BE", "BE_Control"))
-eacCaco <- filter(metadata, status %in% c("EAC", "EAC_Control")) 
+beCaco <- metadata_be
+#beCaco <- filter(metadata, status %in% c("BE", "BE_Control"))
+#eacCaco <- filter(metadata, status %in% c("EAC", "EAC_Control")) 
+ps.be_ck.regression <- subset_samples(ps.prev, status %in% c( "BE_Control"))
+feature_beck_species<- as.data.frame(t(as.data.frame(ps.be_ck.regression@otu_table)))
+
+#all
+tmp1 <- t(feature_be_species_filter) +1
+tmp2 <- apply(tmp1, 2, clr)
+tmp3 <- as.data.frame(t(tmp2))
+tmp4 <- rownames_to_column(tmp3, var = "SampleID")
+#species relative counts
+beCaco2 <- merge(beCaco, tmp4, by = "SampleID")
+#ASV226 172
+tmp5 <-  beCaco2 %>% dplyr::select(SampleID, status, ASV226, ASV172)
+#ASV226
+tmp6 <- tmp5 %>% dplyr::select(SampleID, status, ASV226)
+tmp6_ck <- tmp6 %>% subset(status == "BE_Control")
+tmp6_cutoff <- quantile(tmp6_ck$ASV226, c(0.25,0.5,0.75))
+tmp6_cutoff
+
+for(i in 1:length(tmp6$ASV226))
+{if (tmp6$ASV226[i] <= -1.986254) tmp6$Q[i]= 0
+else if (tmp6$ASV226[i] >-1.986254 & tmp6$ASV226[i] <= -1.580403 ) tmp6$Q[i]=1
+else if (tmp6$ASV226[i] >-1.580403 & tmp6$ASV226[i]<= -1.227301 ) tmp6$Q[i]=2
+else tmp6$Q[i]=3}
+
+#ASV172
+tmp7 <- tmp5 %>% dplyr::select(SampleID, status, ASV172)
+
+tmp7_ck <- tmp7 %>% subset(status == "BE_Control")
+tmp7_cutoff <- quantile(tmp7_ck$ASV172, c(0.25,0.5,0.75))
+tmp7_cutoff
+
+for(i in 1:length(tmp7$ASV172))
+{if (tmp7$ASV172[i] <= -1.957450) tmp7$ASV172Q[i]= 0
+else if (tmp7$ASV172[i] >-1.957450 & tmp7$ASV172[i] <= -1.580403 ) tmp7$ASV172Q[i]=1
+else if (tmp7$ASV172[i] >-1.580403 & tmp7$ASV172[i]<= -1.250815 ) tmp7$ASV172Q[i]=2
+else tmp7$ASV172Q[i]=3}
+
+rm(tmp1,tmp2, tmp3, tmp4)
+```
+#plot
+```{r}
+box<-ggplot(beCaco3, aes(x=status,y=ASV183))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV183, label=fastQId))+
+  geom_point(aes(x=status, y=ASV183))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV183", y="Log-ratio transformation reads")
+
+#violin plot
+data_su
+v6 <- ggplot(beCaco3, aes(x= status, y=ASV102, fill= status))+
+  geom_violin()+ 
+  geom_boxplot(width=0.2,position = position_dodge(0.9))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  #stat_summary(fun = median,  geom = "point", size= 3, col = "black")+ 
+  #stat_summary(fun = median, fun.min = median, fun.max = median, geom = "crossbar", size = 0.3, width = 0.2, col= "black") + 
+  #stat_summary(fun.data = function(x) median_hilow(x, 0.5), geom = "errorbar", width= 0.2, col ="black")+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+   theme(legend.position = 0)+
+  labs(x= "ASV102", y="Log-ratio transformation reads")
+
+ggarrange(v1,v2,v3,v4, v5, ncol=3,nrow=2,labels=c("A","B","C","D","E")) 
+```
+#gerd & ungerd
+```{r}
+be_gerd <- metadata_be.gerd
+be_ungerd <- metadata_be.ungerd
+
+#feature.gerd
+#tmp1 <- t(feature_be_species_filter.gerd) +1
+#tmp2 <- apply(tmp1, 2, clr)
+#tmp3 <- t(tmp2)
+#tmp3 <- as.data.frame(tmp3)
+#tmp4 <- rownames_to_column(tmp3, var = "fastQId")
+
+be_gerd2 <- merge(be_gerd, featureNormlized.gerd, by = "fastQId")
+#ASV183
+begerd3 <-  be_gerd2 %>% dplyr::select(fastQId,status, ASV183, ASV217, ASV63, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+begerd3_1 <- begerd3 %>% filter(., begerd3$ASV63 >0)
+
+#ASV217
+begerd4 <-  be_gerd2 %>% dplyr::select(status, ASV217, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#ASV63
+begerd5 <-  be_gerd2 %>% dplyr::select(status, ASV63, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#plot
+box1<-ggplot(begerd3, aes(x=status,y=ASV183))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV183, label=fastQId))+
+  geom_point(aes(x=status, y=ASV183))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV183", y="Log-ratio transformation reads")
+box2<-ggplot(begerd3, aes(x=status,y=ASV217))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV217, label=fastQId))+
+  geom_point(aes(x=status, y=ASV217))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV217", y="Log-ratio transformation reads")
+box3<- ggplot(begerd3, aes(x=status,y=ASV63))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV63, label=fastQId))+
+  geom_point(aes(x=status, y=ASV63))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV63", y="Log-ratio transformation reads")
+
+library(ggpubr)
+ggarrange(box1,box2,box3,ncol=3,nrow=1,labels=c("A","B","C"))
+
+#feature.ungerd
+#tmp1 <- t(feature_be_species_filter.ungerd) +1
+#tmp2 <- apply(tmp1, 2, clr)
+#tmp3 <- t(tmp2)
+#tmp3 <- as.data.frame(tmp3)
+#tmp3 <- feature_be_species_filter.ungerd
+#tmp4 <- rownames_to_column(tmp3, var = "fastQId")
+
+be_ungerd2 <- merge(be_ungerd, featureNormlized.ungerd, by = "fastQId")
+#ASV108
+beungerd3 <-  be_ungerd2 %>% dplyr::select(fastQId,status, ASV108, ASV141, ASV252, ASV226, ASV102, ASV144, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+beungerd3_1 <- beungerd3 %>% filter(., beungerd3$ASV144 >0)
+
+#plot
+box1<- ggplot(beungerd3, aes(x=status,y=ASV108))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV108, label=fastQId))+
+  geom_point(aes(x=status, y=ASV108))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV108", y="Log-ratio transformation reads")
+box2<- ggplot(beungerd3, aes(x=status,y=ASV141))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV141, label=fastQId))+
+  geom_point(aes(x=status, y=ASV141))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV141", y="Log-ratio transformation reads")
+box3<- ggplot(beungerd3, aes(x=status,y=ASV252))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV252, label=fastQId))+
+  geom_point(aes(x=status, y=ASV252))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV252", y="Log-ratio transformation reads")
+box4<- ggplot(beungerd3, aes(x=status,y=ASV226))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV226, label=fastQId))+
+  geom_point(aes(x=status, y=ASV226))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV226", y="Log-ratio transformation reads")
+box5<- ggplot(beungerd3, aes(x=status,y=ASV102))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV102, label=fastQId))+
+  geom_point(aes(x=status, y=ASV102))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV102", y="Log-ratio transformation reads")
+box6<- ggplot(beungerd3, aes(x=status,y=ASV144))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV144, label=fastQId))+
+  geom_point(aes(x=status, y=ASV144))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV144", y="Log-ratio transformation reads")
+
+ggarrange(box1,box2,box3,ncol=3,nrow=1,labels=c("A","B","C"))
+ggarrange(box4,box5,box6,ncol=3,nrow=1,labels=c("D","E","F"))
+#ASV141
+beungerd4 <-  be_ungerd2 %>% dplyr::select(status, ASV141, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#ASV252
+beungerd5 <-  be_ungerd2 %>% dplyr::select(status, ASV252, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#ASV226
+beungerd6 <-  be_ungerd2 %>% dplyr::select(status, ASV226, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#ASV102
+beungerd7 <-  be_ungerd2 %>% dplyr::select(status, ASV102, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#ASV144
+beungerd8 <-  be_ungerd2 %>% dplyr::select(status, ASV144, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
 
 # Then check type inside be file and eac file
 knitr::kable(table(beCaco$status), caption = "Sample type in BE case control dataset")
-knitr::kable(table(eacCaco$status), caption = "Sample type in EAC case control dataset")
+#knitr::kable(table(eacCaco$status), caption = "Sample type in EAC case control dataset")
 
+```
+#Deseq relative abundance
+```{r}
+deseq_relative_reads <- as.data.frame(t(counts(dds.be.10.adjt.all,normalized=TRUE))) %>%
+  rownames_to_column(., var = "SampleID")
+
+#species relative counts
+beCaco$status <- factor(beCaco$status, levels = c("BE_Control", "BE"))
+
+beCaco2 <- merge(beCaco, feature_be_species_filter, by = "SampleID")
+#ASV183
+beCaco3 <-  beCaco2 %>% dplyr::select(SampleID, status, ASV302)
+
+#plot
+box1<- ggplot(beCaco_d2, aes(x=status,y=ASV183))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV183, label=SampleID))+
+  geom_point(aes(x=status, y=ASV183))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV183", y="Deseq2 transformation reads")
+
+
+#gerd
+deseq_relative_reads_gerd <- as.data.frame(t(counts(dds.be.10.adjt.all.withgerd, normalized=TRUE))) %>%
+  rownames_to_column(., var = "SampleID")
+
+beCaco_gerd <- merge(beCaco, deseq_relative_reads_gerd, by = "SampleID")
+beCaco_gerd2 <-  beCaco_gerd %>% dplyr::select(SampleID,status, ASV183, ASV217, ASV63, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#genus
+deseq_genus_reads <- as.data.frame(t(counts(dds.be.genus.10.adjt.all.withgerd,normalized=TRUE))) %>%
+  rownames_to_column(., var = "SampleID")
+becaco_gerd.genus <- merge(beCaco, deseq_genus_reads, by = "SampleID")
+beCaco_gerd2.genus <-  becaco_gerd.genus %>% dplyr::select(SampleID,status, ASV217, ASV8, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+deseq_genus_reads_ungerd <- as.data.frame(t(counts(dds.be.genus.10.adjt.all.ungerd,normalized=TRUE))) %>%
+  rownames_to_column(., var = "SampleID")
+
+becaco_ungerd.genus <- merge(beCaco, deseq_genus_reads_ungerd, by = "SampleID")
+beCaco_ungerd2.genus <-  becaco_ungerd.genus %>% dplyr::select(SampleID,status, ASV141, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#plot
+box1<-ggplot(beCaco_gerd2.genus, aes(x=status,y=ASV8))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV183, label=SampleID))+
+  geom_point(aes(x=status, y=ASV183))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV183", y="Deseq2 transformation reads")
+box2<-ggplot(beCaco_gerd2, aes(x=status,y=ASV217))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV217, label=SampleID))+
+  geom_point(aes(x=status, y=ASV217))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV217", y="Deseq2 transformation reads")
+box3<- ggplot(beCaco_gerd2, aes(x=status,y=ASV63))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV63, label=SampleID))+
+  geom_point(aes(x=status, y=ASV63))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV63", y="Deseq2 transformation reads")
+
+library(ggpubr)
+ggarrange(box1,box2,box3,ncol=3,nrow=1,labels=c("A","B","C"))
+
+#ungerd
+deseq_relative_reads_ungerd <- as.data.frame(t(counts(dds.be.10.adjt.all.ungerd, normalized=TRUE))) %>%
+  rownames_to_column(., var = "SampleID")
+
+beCaco_ungerd <- merge(beCaco, deseq_relative_reads_ungerd, by = "SampleID")
+beCaco_ungerd2 <-  beCaco_ungerd %>% dplyr::select(SampleID,status, ASV108, ASV141, ASV252, ASV226, ASV102, ASV144, regaspd, age_cheek, gerdall, anyaat, bmicum, alcocum, pckyr, yendo, ahei2010_noETOHcum, be_dnatype, smoke)
+
+#plot
+box1<- ggplot(beCaco_ungerd2, aes(x=status,y=ASV108))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV108, label=SampleID))+
+  geom_point(aes(x=status, y=ASV108))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV108", y="Deseq2 transformation reads")
+box2<- ggplot(beCaco_ungerd2, aes(x=status,y=ASV141))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV141, label=SampleID))+
+  geom_point(aes(x=status, y=ASV141))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV141", y="Deseq2 transformation reads")
+box3<- ggplot(beCaco_ungerd2, aes(x=status,y=ASV252))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV252, label=SampleID))+
+  geom_point(aes(x=status, y=ASV252))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV252", y="Deseq2 transformation reads")
+box4<- ggplot(beCaco_ungerd2, aes(x=status,y=ASV226))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV226, label=SampleID))+
+  geom_point(aes(x=status, y=ASV226))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV226", y="Deseq2 transformation reads")
+box5<- ggplot(beCaco_ungerd2, aes(x=status,y=ASV102))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV102, label=SampleID))+
+  geom_point(aes(x=status, y=ASV102))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV102", y="Deseq2 transformation reads")
+box6<- ggplot(beCaco_ungerd2, aes(x=status,y=ASV144))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV144, label=SampleID))+
+  geom_point(aes(x=status, y=ASV144))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV144", y="Deseq2 transformation reads")
+
+ggarrange(box1,box2,box3,ncol=3,nrow=1,labels=c("A","B","C"))
+ggarrange(box4,box5,box6,ncol=3,nrow=1,labels=c("D","E","F"))
 ```
 
 # Table1 for BE
@@ -56,19 +377,20 @@ table1(
     factor(yendo) +
     factor(cheekYear) +
     bmicum +
-    actmcum +
-    caloriecum +
+    #actmcum +
+    #caloriecum +
     alcocum +
-    factor(pmhc) +
+    pckyr+
+    #factor(pmhc) +
     factor(smoke) +
     ahei2010_noETOHcum +
     factor(upperendo) +
     factor(gerdall) +
     factor(anyaat) +
-    factor(regasp) +
+    #factor(regasp) +
     factor(regaspd) +
-    factor(avregaspre) +
-    factor(nsaid) +
+    #factor(avregaspre) +
+    #factor(nsaid) +
     factor(db) | factor(be_caco),
   data = beCaco,
   overall = "Total"
@@ -98,24 +420,80 @@ publish(
 ```{r logisticBE, echo=FALSE}
 publish(
   glm(
-    be_caco ~ factor(regaspd) +
+    factor(status) ~ ASV302+
+      #factor(regaspd) +
       age_cheek +
-      cheekYear +
-      factor(gerdall) +
+      #factor(gerdall) +
       factor(anyaat) +
-      bmicum +
-      actmcum +
-      caloriecum +
-      alcocum +
-      factor(pmhc) +
-      factor(smoke)  ,
+      #bmicum +
+      #alcocum +
+      pckyr+
+      yendo +
+      #ahei2010_noETOHcum + 
+      factor(be_dnatype) +
+      factor(smoke),
     family = "binomial",
-    beCaco
+    beCaco2
   )
 )
 ```
+#plot
+```{r}
+p3 <- ggplot(beCaco_ungerd2.genus, aes(x= status, y=ASV141, col= status))+
+  geom_beeswarm(size =1, alpha = 0.5)+ 
+  stat_summary(fun = median,  geom = "point", size= 3, col = "black")+ 
+  stat_summary(fun = median, fun.min = median, fun.max = median, geom = "crossbar", size = 0.3, width = 0.2, col= "black") + 
+  stat_summary(fun.data = function(x) median_hilow(x, 0.5), geom = "errorbar", width= 0.2, col ="black")+
+  theme_classic() +
+  theme(legend.position = 0)
 
+ggarrange(p1,p2,p3,ncol=3,nrow=2,labels=c("A","B","C"))
+```
+#forest_plot
+```{r}
+uncondf <- cbind(OR=c(1.75, 0.56, 1.46, 1.80, 1.74, 1.91, 0.70, 1.36),
+                 LCI=c(1.25, 0.37, 1.13, 1.26, 1.20, 1.21, 0.54, 1.10),
+                 UCI=c(2.45, 0.84, 1.87, 2.56, 2.53, 3.03, 0.91, 1.68),
+                 pvalue=c(0.001, 0.005, 0.003, 0.001, 0.004, 0.006, 0.007, 0.005),
+                 groups=c(1, 2, 2, 3, 3, 3, 3, 3)
+)
 
+rownames(uncondf) <- c("Prevotella_oralis",
+                       "Porphyromonas_sp.",
+                       "Veillonella_sp.",
+                       "Leptotrichia_sp.",
+                       "Alloprevotella_tannerae",
+                       "Prevotella_oralis",
+                       "Prevotella_oris",
+                       "Streptococcus_sp.")
+uncondf <- as.data.frame(uncondf)
+
+library(forplo)
+install.packages("extrafont")
+library(extrafont)
+font_import()
+
+#pdf("plot",height=7,width=9)
+ forplo(uncondf[,1:3],
+            groups = uncondf$groups,
+            grouplabs = c("Overall", "GERD", "WithoutGERD"),
+            group.space =1,
+            add.columns = uncondf$pvalue,
+            add.colnames = c("P-value"),
+            xlim=c(0.2,5),
+            left.align = F,
+            ci.sep = "~",
+            ci.lwd = 1,
+            ci.edge = T,
+            right.bar = T,
+            rightbar.ticks = T,
+            left.bar = T,
+            leftbar.ticks = T,
+            fill.by = uncondf$groups,
+            fill.colors = c("orange", "red", "blue")
+            )
+ dev.off()
+```
 # Table 1 for EAC
 ```{r table1EAC, echo=FALSE}
 table1(
@@ -176,3 +554,74 @@ table1(
 #   )
 # )
 ```
+#distribution
+```{r}
+library(ggrepel)
+
+#all
+sample_reads1 <- feature_be_species_filter %>% dplyr::select(ASV183) %>%
+  rownames_to_column(., var = "fastQId")
+sample_reads <- merge(sample_reads1, metadata_be, by="fastQId")
+
+#gerd
+sample_read_gerd1 <- feature_be_species_filter.gerd %>% dplyr::select(ASV183, ASV217, ASV63) %>%
+  rownames_to_column(., var = "fastQId")
+sample_reads_gerd <- merge(sample_read_gerd1, metadata_be.gerd, by="fastQId")
+
+#ungerd
+sample_read_ungerd1 <- feature_be_species_filter.ungerd %>% dplyr::select(ASV108, ASV141, ASV252, ASV226, ASV102, ASV144) %>%
+  rownames_to_column(., var = "fastQId")
+sample_reads_ungerd <- merge(sample_read_ungerd1, metadata_be.ungerd, by="fastQId")
+
+#cooks distance
+cooks <- data.frame(tttest_cooks) %>% dplyr::select(ASV252) %>%
+  rownames_to_column(., var = "fastQId")
+cooks2 <- merge(cooks, metadata_be.ungerd, by="fastQId")
+#plot
+box<-ggplot(cooks2, aes(x=status,y=log10(ASV252)))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV252, label=fastQId))+
+  geom_point(aes(x=status, y=ASV252))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV252", y="Cooks distance")
+
+```
+#cooks_distance
+```{r}
+test_cooks <- t(data.frame(assays(dds.be.10.adjt.all.ungerd)[["cooks"]], check.names = F))
+
+test_cooks2 <- data.frame(test_cooks) %>% dplyr::select(ASV108, ASV141, ASV252, ASV226, ASV102, ASV144)
+
+#ungerd
+test_cooks3 <- test_cooks2 %>%
+  rownames_to_column(., var = "fastQId")
+test_cooks4 <- merge(test_cooks3, metadata_be.ungerd, by="fastQId")
+
+
+box<-ggplot(test_cooks4, aes(x=status,y=log10(ASV252)))+
+  geom_boxplot()+
+  geom_text_repel(aes(status, ASV252, label=fastQId))+
+  geom_point(aes(x=status, y=ASV252))+
+  stat_boxplot(geom='errorbar', width=0.2)+
+  theme(panel.grid= element_blank(), panel.background =element_blank(),axis.line = element_line(size=0.5))+
+  labs(x= "ASV252", y="Cooks distance")
+
+boxplot(log10(test_cooks2))
+
+```
+                                                                   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
